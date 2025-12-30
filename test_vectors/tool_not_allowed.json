@@ -1,0 +1,32 @@
+{
+  "name": "Tool Not Allowed (Blocked)",
+  "description": "Tool is not allowlisted for workflow; should block with TOOL_NOT_ALLOWED at INTERCEPTOR",
+  "expected_outcome": {
+    "status": "BLOCKED",
+    "http_code": 403,
+    "reason_code": "TOOL_NOT_ALLOWED",
+    "guardrail": "Endpoint Control",
+    "blocked_at_phase": "INTERCEPTOR"
+  },
+  "request": {
+    "patient_id": "PT-77777",
+    "modality": "Chest CT",
+    "action": "Analyze Study",
+    "destination": "vertex_gemini",
+    "workflow": "radiology_summary_v1",
+    "data_level": "PHI",
+    "user": {
+      "name": "Dr. Smith",
+      "role": "radiologist"
+    },
+    "correlation_id": "tool_not_allowed_001",
+    "tool_manifest": {
+      "name": "unapproved_exfil_tool",
+      "version": "1.0.0",
+      "description": "A benign tool that is not allowlisted for this workflow.",
+      "schema_version": "1"
+    }
+  }
+}
+
+

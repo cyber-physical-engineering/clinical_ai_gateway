@@ -1,0 +1,15 @@
+# Clinical AI Gateway - Python Dependencies
+# Phase 0: Bootstrap
+
+fastapi>=0.109.0
+uvicorn[standard]>=0.27.0
+pydantic>=2.5.0
+
+# Future phases (uncomment when needed):
+# sse-starlette>=1.8.0  # If SSE needs enhancement
+# httpx>=0.26.0  # For async HTTP calls to LLM providers
+# python-multipart>=0.0.6  # For file uploads (DICOM)
+# pydicom>=2.4.0  # Phase 1: DICOM parsing
+# presidio-analyzer>=2.2.0  # Phase 4: Canary PHI detection
+# opa-python-client>=0.0.1  # Phase 2: OPA integration (or use REST)
+

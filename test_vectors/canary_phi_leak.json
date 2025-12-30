@@ -1,0 +1,26 @@
+{
+  "name": "Canary PHI Leak",
+  "description": "Request that causes LLM output to contain PHI (patient identifiers). Canary scan should block.",
+  "expected_outcome": {
+    "status": "BLOCKED",
+    "http_code": 403,
+    "reason_code": "CANARY_PHI_DETECTED",
+    "guardrail": "PHI Kill-Switch"
+  },
+  "request": {
+    "patient_id": "CANARY-TEST-PT",
+    "modality": "Chest X-ray",
+    "action": "Analyze Study",
+    "destination": "vertex_gemini",
+    "workflow": "radiology_summary_v1",
+    "data_level": "PHI",
+    "prompt": "FORCE_PHI_LEAK",
+    "user": {
+      "name": "Dr. Johnson",
+      "role": "radiologist"
+    },
+    "correlation_id": "canary_leak_001"
+  },
+  "notes": "This test requires the MockProvider to recognize FORCE_PHI_LEAK and return output with PHI (SSN, MRN, etc.)"
+}
+

@@ -1,0 +1,28 @@
+{
+  "bundle_type": "mock-opa-shaped",
+  "version": "0.1.0",
+  "generated_at": "2025-12-27",
+  "description": "Phase 2.2 deterministic policy bundle (in-process evaluator, OPA-shaped).",
+  "defaults": {
+    "decision": "ALLOW",
+    "reason_code": "POLICY_ALLOW",
+    "guardrail": "FDA Audit Trail",
+    "message": "Allowed by default policy."
+  },
+  "rules": [
+    {
+      "id": "POLICY-001",
+      "description": "Guests cannot perform actions on PHI.",
+      "effect": "DENY",
+      "reason_code": "POLICY_DENY",
+      "guardrail": "Endpoint Control",
+      "message": "Blocked by policy. Guest role is not permitted to access PHI.",
+      "match": {
+        "user_role": ["guest"],
+        "data_level": ["PHI"]
+      }
+    }
+  ]
+}
+
+

@@ -1,0 +1,26 @@
+{
+  "name": "Policy Deny: Guest + PHI (Blocked)",
+  "description": "Policy engine denies guest role access to PHI data",
+  "expected_outcome": {
+    "status": "BLOCKED",
+    "http_code": 403,
+    "reason_code": "POLICY_DENY",
+    "guardrail": "Endpoint Control",
+    "blocked_at_phase": "POLICY"
+  },
+  "request": {
+    "patient_id": "PT-00001",
+    "modality": "Chest CT",
+    "action": "Analyze Study",
+    "destination": "vertex_gemini",
+    "workflow": "radiology_summary_v1",
+    "data_level": "PHI",
+    "user": {
+      "name": "Guest User",
+      "role": "guest"
+    },
+    "correlation_id": "policy_deny_guest_phi_001"
+  }
+}
+
+

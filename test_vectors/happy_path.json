@@ -1,0 +1,23 @@
+{
+  "name": "Happy Path (Allowed)",
+  "description": "Clean request with valid BAA destination, no injection, proper user role",
+  "expected_outcome": {
+    "status": "ALLOWED",
+    "http_code": 200,
+    "final_phase": "RESPONDED"
+  },
+  "request": {
+    "patient_id": "GOOD-PT",
+    "modality": "Chest X-ray",
+    "action": "Analyze Study",
+    "destination": "vertex_gemini",
+    "workflow": "radiology_summary_v1",
+    "data_level": "PHI",
+    "user": {
+      "name": "Dr. Johnson",
+      "role": "radiologist"
+    },
+    "correlation_id": "happy_001"
+  }
+}
+

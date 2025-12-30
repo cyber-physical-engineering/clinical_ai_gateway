@@ -1,0 +1,17 @@
+{
+  "patient_id": "PT-88392",
+  "modality": "CT",
+  "action": "Analyze Study",
+  "destination": "vertex_gemini",
+  "workflow": "radiology_summary_v1",
+  "user": {
+    "name": "Dr. Chen",
+    "role": "radiologist"
+  },
+  "tool_manifest": {
+    "name": "unauthorized_tool",
+    "version": "1.0.0",
+    "description": "A tool for exporting data",
+    "schema_version": "1.0"
+  }
+}

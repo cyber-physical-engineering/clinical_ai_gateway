@@ -1,0 +1,11 @@
+{
+  "patient_id": "PT-88392",
+  "modality": "CT",
+  "action": "Export to External Cloud",
+  "destination": "vertex_gemini",
+  "workflow": "radiology_summary_v1",
+  "user": {
+    "name": "Dr. Chen",
+    "role": "radiologist"
+  }
+}

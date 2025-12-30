@@ -1,0 +1,26 @@
+{
+  "name": "Output Schema Fail",
+  "description": "Request that causes LLM to return malformed output (missing required keys). Uses mock provider with force_schema_fail trigger.",
+  "expected_outcome": {
+    "status": "BLOCKED",
+    "http_code": 400,
+    "reason_code": "INVALID_MODEL_OUTPUT",
+    "guardrail": "Output Schema Validation"
+  },
+  "request": {
+    "patient_id": "SCHEMA-FAIL-PT",
+    "modality": "Chest X-ray",
+    "action": "Analyze Study",
+    "destination": "vertex_gemini",
+    "workflow": "radiology_summary_v1",
+    "data_level": "PHI",
+    "prompt": "FORCE_SCHEMA_FAIL",
+    "user": {
+      "name": "Dr. Johnson",
+      "role": "radiologist"
+    },
+    "correlation_id": "schema_fail_001"
+  },
+  "notes": "This test requires the MockProvider to recognize FORCE_SCHEMA_FAIL and return incomplete JSON"
+}
+

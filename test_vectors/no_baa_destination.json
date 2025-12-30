@@ -1,0 +1,25 @@
+{
+  "name": "No BAA Destination (Blocked)",
+  "description": "Request to destination without BAA agreement - should block at INTERCEPTOR phase",
+  "expected_outcome": {
+    "status": "BLOCKED",
+    "http_code": 403,
+    "reason_code": "NO_BAA_DESTINATION",
+    "guardrail": "BAA Enforcement",
+    "blocked_at_phase": "INTERCEPTOR"
+  },
+  "request": {
+    "patient_id": "PT-88392",
+    "modality": "MRI Head",
+    "action": "Analyze Study",
+    "destination": "public_huggingface",
+    "workflow": "radiology_summary_v1",
+    "data_level": "PHI",
+    "user": {
+      "name": "Dr. Smith",
+      "role": "radiologist"
+    },
+    "correlation_id": "no_baa_001"
+  }
+}
+

@@ -1,0 +1,27 @@
+# Python
+venv/
+__pycache__/
+*.pyc
+.env
+.DS_Store
+.pytest_cache/
+*.egg-info/
+
+# Node
+node_modules/
+.next/
+dist/
+build/
+npm-debug.log
+yarn-error.log
+
+# Scanner / Data
+scanner_data.db
+*.db
+*.sqlite
+*.log
+
+# IDE
+.idea/
+.vscode/
+
