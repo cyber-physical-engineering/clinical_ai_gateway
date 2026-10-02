@@ -117,3 +117,7 @@ Two notes. `tool_manifest_invalid` contains the phrase "ignore all prior", so th
 - `api/Dockerfile` is a placeholder. It copies only `main.py`, so the image cannot run.
 - The scanner's real mode was not exercised in the October 2026 checks. Its socket fallback ignores the requested subnet and probes the scanning machine's own network. Two of its five script tests touch the real network, and they run only with `SCANNER_REAL_NETWORK=1`.
 - The output rails were shown only with the mock provider's test triggers, here and in the July 2026 cloud test.
+
+## License
+
+MIT. See [LICENSE](LICENSE).
