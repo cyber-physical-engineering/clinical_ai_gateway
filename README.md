@@ -4,6 +4,8 @@ An HTTP service that applies fixed rules to each clinical AI request it receives
 
 **Status: prototype.** 35 unit tests pass for the input, output and audit-record code, and the three mock-scanner tests pass. The inspector UI builds. All 11 test vectors replay as expected with the mock provider. Re-run October 2, 2026 on Python 3.9.6 and Node 22 (Apple M1 Max).
 
+[![CI](https://github.com/cyber-physical-engineering/clinical_ai_gateway/actions/workflows/ci.yml/badge.svg)](https://github.com/cyber-physical-engineering/clinical_ai_gateway/actions/workflows/ci.yml)
+
 James Thornton set the architecture and requirements. The code was written with AI-assisted development in late 2025. The tests and checks were re-run in October 2026.
 
 ## Where it comes from
