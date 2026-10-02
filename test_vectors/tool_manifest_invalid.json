@@ -4,8 +4,8 @@
   "expected_outcome": {
     "status": "BLOCKED",
     "http_code": 400,
-    "reason_code": "TOOL_MANIFEST_INVALID",
-    "guardrail": "Model Integrity Check",
+    "reason_code": "INJECTION_DETECTED",
+    "guardrail": "Endpoint Control",
     "blocked_at_phase": "INTERCEPTOR"
   },
   "request": {

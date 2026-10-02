@@ -4,12 +4,16 @@ Scanner Test Script - Phase 4.2
 Tests both real and mock scanners locally.
 
 Run: python -m scanner.test_scanner
-From: gateway/ directory
+From: the repository root
 """
 
 import asyncio
+import os
 import sys
 from pathlib import Path
+
+# A script, not a pytest module: run it with python -m scanner.test_scanner
+__test__ = False
 
 # Ensure scanner module is importable
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
@@ -222,7 +226,7 @@ async def test_dns_analysis() -> bool:
 async def main():
     """Run all tests."""
     print("\n" + "🔍 " * 20)
-    print("   AI TrustStack - Network Scanner Tests")
+    print("   Network scanner tests")
     print("   Phase 4.2: Shadow AI Detection")
     print("🔍 " * 20)
     
@@ -232,8 +236,11 @@ async def main():
     results.append(("Mock Scanner", await test_mock_scanner()))
     results.append(("Quick Scan", await test_quick_scan()))
     results.append(("Isolation", await test_isolation()))
-    results.append(("DNS Analysis", await test_dns_analysis()))
-    results.append(("Real Scanner (local)", await test_real_scanner_local()))
+    if os.environ.get("SCANNER_REAL_NETWORK") == "1":
+        results.append(("DNS Analysis", await test_dns_analysis()))
+        results.append(("Real Scanner (local)", await test_real_scanner_local()))
+    else:
+        print("\n  Skipped the two real-network tests. Set SCANNER_REAL_NETWORK=1 to run them.")
     
     # Summary
     print_header("Test Summary")

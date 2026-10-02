@@ -120,7 +120,7 @@ class MockScanner:
                 }
             ),
             
-            # Node B: AI Orchestrator (Trusted - this is TrustStack/Ferrum)
+            # Node B: AI Orchestrator (trusted; the demo orchestrator)
             DetectedNode(
                 id="node_ai_orchestrator",
                 ip_address="192.168.1.20",
@@ -132,11 +132,11 @@ class MockScanner:
                 detection_method="port_scan",
                 risk_reasons=[],
                 baa_status=True,
-                display_label="AI Orchestrator (TrustStack)",
+                display_label="AI Orchestrator (demo)",
                 first_seen=now - timedelta(days=7),
                 last_seen=now,
                 scan_metadata={
-                    "vendor": "HealthSec",
+                    "vendor": "Demo",
                     "version": "0.1.0",
                     "gateway_active": True,
                 }

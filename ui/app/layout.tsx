@@ -20,7 +20,7 @@ export const metadata: Metadata = {
 const themeScript = `
   (function() {
     try {
-      var theme = localStorage.getItem('healthsec-theme');
+      var theme = localStorage.getItem('gateway-theme');
       if (theme === 'light') {
         document.documentElement.classList.add('light');
       } else {

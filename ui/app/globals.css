@@ -2,7 +2,7 @@
 @tailwind components;
 @tailwind utilities;
 
-/* HealthSec Design System v1.0 - Gateway UI (Dark Mode Optimized) */
+/* Gateway inspector styles (dark mode) */
 
 @layer base {
   :root {

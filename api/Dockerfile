@@ -1,5 +1,5 @@
 # Clinical AI Gateway - Docker Image
-# Phase 7: Containerization (placeholder for now)
+# Placeholder. It copies only main.py, so the image cannot run. See the README's limits.
 
 FROM python:3.11-slim
 
