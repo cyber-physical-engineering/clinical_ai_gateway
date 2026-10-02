@@ -61,14 +61,22 @@ interface PrivateAuditEvent {
   data_level?: string
   threat_indicators?: Record<string, any>
   full_request?: Record<string, any>
+  details?: { policy_input?: Partial<Record<AuditField, string>> } & Record<string, any>
   audit_hash: string
   retention_days: number
+}
+
+type AuditField = 'user_role' | 'workflow' | 'destination' | 'data_level'
+
+// Private events carry these fields at the top level or inside details.policy_input.
+function auditField(event: PrivateAuditEvent, key: AuditField): string | undefined {
+  return event[key] ?? event.details?.policy_input?.[key]
 }
 
 interface PublicThreatEvent {
   event_id: string
   request_hash: string
-  timestamp_coarse: string
+  timestamp: string
   threat_type: string
   severity: string
   reason_code?: string
@@ -167,8 +175,8 @@ const TEST_VECTORS: Record<string, TestVector> = {
     expected_outcome: {
       status: 'BLOCKED',
       http_code: 400,
-      reason_code: 'TOOL_MANIFEST_INVALID',
-      guardrail: 'Model Integrity Check',
+      reason_code: 'INJECTION_DETECTED',
+      guardrail: 'Endpoint Control',
       blocked_at_phase: 'INTERCEPTOR'
     },
     request: {
@@ -261,7 +269,7 @@ const TEST_VECTORS: Record<string, TestVector> = {
   },
   canary_phi_leak: {
     name: 'Canary PHI Leak (Blocked)',
-    description: 'LLM output contains PHI (patient identifiers); PHI kill-switch blocks at OUTPUT phase',
+    description: 'The mock answer contains an SSN and an MRN; the output check blocks at the OUTPUT phase',
     expected_outcome: {
       status: 'BLOCKED',
       http_code: 403,
@@ -689,26 +697,26 @@ export default function GatewayInspector() {
               <div className="bg-gateway-panel border border-gateway-border rounded-lg p-4">
                 <div className="text-sm text-gateway-muted mb-1">Private Events</div>
                 <div className="text-2xl font-bold text-gateway-fg">{auditStats.private_event_count}</div>
-                <div className="text-xs text-gateway-muted2 mt-1">Full audit trail (may contain PHI)</div>
+                <div className="text-xs text-gateway-muted2 mt-1">Internal events (IDs and prompts hashed)</div>
               </div>
               <div className="bg-gateway-panel border border-gateway-border rounded-lg p-4">
                 <div className="text-sm text-gateway-muted mb-1">Public Events</div>
                 <div className="text-2xl font-bold text-gateway-accent">{auditStats.public_event_count}</div>
-                <div className="text-xs text-gateway-muted2 mt-1">Sanitized threat intel (no PHI)</div>
+                <div className="text-xs text-gateway-muted2 mt-1">Reduced records, one per blocked request</div>
               </div>
               <div className="bg-gateway-panel border border-gateway-border rounded-lg p-4">
                 <div className="text-sm text-gateway-muted mb-1">PHI in Private</div>
                 <div className={`text-2xl font-bold ${auditStats.phi_in_private ? 'text-status-warning' : 'text-status-success'}`}>
                   {auditStats.phi_in_private ? 'YES' : 'NO'}
                 </div>
-                <div className="text-xs text-gateway-muted2 mt-1">By design (compliance)</div>
+                <div className="text-xs text-gateway-muted2 mt-1">Checked with the PHI scan</div>
               </div>
               <div className="bg-gateway-panel border border-gateway-border rounded-lg p-4">
                 <div className="text-sm text-gateway-muted mb-1">PHI in Public</div>
                 <div className={`text-2xl font-bold ${auditStats.phi_in_public ? 'text-status-danger' : 'text-status-success'}`}>
-                  {auditStats.phi_in_public ? 'LEAK!' : 'NEVER'}
+                  {auditStats.phi_in_public ? 'FOUND' : 'NONE'}
                 </div>
-                <div className="text-xs text-gateway-muted2 mt-1">Kill-switch proof</div>
+                <div className="text-xs text-gateway-muted2 mt-1">Checked with the PHI scan</div>
               </div>
             </div>
           )}
@@ -735,10 +743,10 @@ export default function GatewayInspector() {
               <div className="flex items-center justify-between mb-4">
                 <div>
                   <h2 className="text-xl font-bold text-status-warning mb-1">
-                    Private Audit Stream
+                    Internal Events
                   </h2>
                   <p className="text-sm text-gateway-muted">
-                    ⚠️ May contain PHI • 7-year retention • Full details
+                    In memory, last 100 • IDs and prompts hashed
                   </p>
                 </div>
                 <div className="text-sm text-gateway-muted">
@@ -783,31 +791,31 @@ export default function GatewayInspector() {
                     {/* Rich Details (may contain PHI) */}
                     <div className="mt-3 p-3 bg-gateway-bg rounded border border-gateway-border">
                       <div className="grid grid-cols-2 gap-2 text-xs">
-                        {event.user_role && (
+                        {auditField(event, 'user_role') && (
                           <div>
                             <span className="text-gateway-muted2">User Role:</span>
-                            <span className="ml-2 text-gateway-fg">{event.user_role}</span>
+                            <span className="ml-2 text-gateway-fg">{auditField(event, 'user_role')}</span>
                           </div>
                         )}
-                        {event.workflow && (
+                        {auditField(event, 'workflow') && (
                           <div>
                             <span className="text-gateway-muted2">Workflow:</span>
-                            <span className="ml-2 text-gateway-fg">{event.workflow}</span>
+                            <span className="ml-2 text-gateway-fg">{auditField(event, 'workflow')}</span>
                           </div>
                         )}
-                        {event.destination && (
+                        {auditField(event, 'destination') && (
                           <div>
                             <span className="text-gateway-muted2">Destination:</span>
-                            <span className="ml-2 text-gateway-fg">{event.destination}</span>
+                            <span className="ml-2 text-gateway-fg">{auditField(event, 'destination')}</span>
                           </div>
                         )}
-                        {event.data_level && (
+                        {auditField(event, 'data_level') && (
                           <div>
                             <span className="text-gateway-muted2">Data Level:</span>
                             <span className={`ml-2 font-medium ${
-                              event.data_level === 'PHI' ? 'text-status-danger' : 'text-status-success'
+                              auditField(event, 'data_level') === 'PHI' ? 'text-status-danger' : 'text-status-success'
                             }`}>
-                              {event.data_level}
+                              {auditField(event, 'data_level')}
                             </span>
                           </div>
                         )}
@@ -817,9 +825,6 @@ export default function GatewayInspector() {
                       <div className="mt-2 pt-2 border-t border-gateway-border">
                         <span className="text-xs text-gateway-muted2">Audit Hash: </span>
                         <span className="text-xs font-mono text-gateway-muted break-all">{event.audit_hash}</span>
-                      </div>
-                      <div className="text-xs text-gateway-muted2 mt-1">
-                        Retention: {event.retention_days} days (HIPAA)
                       </div>
                     </div>
                   </div>
@@ -837,10 +842,10 @@ export default function GatewayInspector() {
               <div className="flex items-center justify-between mb-4">
                 <div>
                   <h2 className="text-xl font-bold text-status-success mb-1">
-                    Public Threat Stream
+                    Reduced Records
                   </h2>
                   <p className="text-sm text-gateway-muted">
-                    ✅ Sanitized • No PHI • Safe to share externally
+                    Hashed IDs, reason code, hour-level time
                   </p>
                 </div>
                 <div className="text-sm text-gateway-muted">
@@ -878,7 +883,7 @@ export default function GatewayInspector() {
                           Request Hash: <span className="font-mono text-gateway-fg break-all">{event.request_hash}</span>
                         </div>
                         <div className="text-xs text-gateway-muted2">
-                          {event.timestamp_coarse} (coarsened to hour)
+                          {event.timestamp} (coarsened to hour)
                         </div>
                       </div>
                     </div>
@@ -914,11 +919,11 @@ export default function GatewayInspector() {
                         </div>
                         <div className="flex items-center gap-2 mt-1">
                           <span className="text-xs text-status-success">✓</span>
-                          <span className="text-xs text-gateway-muted">PHI patterns redacted</span>
+                          <span className="text-xs text-gateway-muted">Reason code and severity only</span>
                         </div>
                         <div className="flex items-center gap-2 mt-1">
                           <span className="text-xs text-status-success">✓</span>
-                          <span className="text-xs text-gateway-muted">Timestamps coarsened</span>
+                          <span className="text-xs text-gateway-muted">Timestamps rounded to the hour</span>
                         </div>
                       </div>
                     </div>

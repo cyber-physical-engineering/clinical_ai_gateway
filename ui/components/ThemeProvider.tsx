@@ -19,7 +19,7 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
 
   // Read actual theme from localStorage/DOM after mount to avoid hydration mismatch
   useEffect(() => {
-    const savedTheme = localStorage.getItem('healthsec-theme') as Theme | null
+    const savedTheme = localStorage.getItem('gateway-theme') as Theme | null
     if (savedTheme) {
       setTheme(savedTheme)
     } else if (document.documentElement.classList.contains('light')) {
@@ -34,7 +34,7 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
     const root = document.documentElement
     root.classList.remove('light', 'dark')
     root.classList.add(theme)
-    localStorage.setItem('healthsec-theme', theme)
+    localStorage.setItem('gateway-theme', theme)
   }, [theme, mounted])
 
   const toggleTheme = () => setTheme(t => t === 'dark' ? 'light' : 'dark')

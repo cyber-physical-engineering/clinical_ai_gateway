@@ -1,11 +1,9 @@
 """
-Clinical AI Gateway - Phase 0 (Bootstrap)
+Clinical AI Gateway
 
-This is the core "Choke Chain" gateway that enforces guardrails on all AI requests.
-It provides real-time event streaming to the Inspector UI via SSE.
-
-Source of truth: devlog/gateway_build.md, mermaid/ai_gateway.mmd
-Contract: devlog/gateway_demo_contract.md
+A FastAPI service. Each request to POST /v1/analyze passes six steps: received,
+input checks, policy, model call, output checks, response. Each step is sent to
+the inspector UI as a server-sent event. Prototype; see README.md for limits.
 """
 
 import asyncio
@@ -22,10 +20,9 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field
 
-# Rails module (Phase 2.3 - NeMo Guardrails Scaffolding + Phase 5 Split-Stream)
+# Input, output and audit-record rails
 from rails import (
     run_input_rails,
-    run_dialog_rails,
     run_output_rails,
     InputRailResult,
     # Phase 5: Split-Stream Logging
@@ -190,7 +187,7 @@ class PolicyDecision(BaseModel):
 # Policy Bundle Loading + Evaluation (Phase 2.2 - Mock OPA, OPA-shaped)
 # =============================================================================
 
-GATEWAY_ROOT = Path(__file__).resolve().parents[1]  # gateway/
+GATEWAY_ROOT = Path(__file__).resolve().parents[1]  # the repository root
 POLICY_DIR = GATEWAY_ROOT / "policy"
 DEFAULT_POLICY_BUNDLE_FILE = "policy_bundle_v0_1_0.json"
 POLICY_ENGINE_NAME = "mock_opa_inprocess"
@@ -294,7 +291,7 @@ def evaluate_policy(policy_input: PolicyInput) -> PolicyDecision:
     return PolicyDecision(
         decision=str(defaults.get("decision", "ALLOW")).upper(),
         reason_code=defaults.get("reason_code", "POLICY_ALLOW"),
-        guardrail=defaults.get("guardrail", "FDA Audit Trail"),
+        guardrail=defaults.get("guardrail", "Default policy"),
         message=defaults.get("message", "Allowed by default policy."),
         policy_version=bundle.get("version", "unknown"),
         policy_id=None,
@@ -419,21 +416,6 @@ DESTINATIONS = {
     }
 }
 
-# Injection patterns (Phase 1.6)
-INJECTION_PATTERNS = [
-    "ignore previous instructions",
-    "ignore all prior",
-    "disregard your instructions",
-    "forget your instructions",
-    "you are now",
-    "pretend you are",
-    "act as if",
-    "bypass",
-    "jailbreak",
-    "DAN mode",
-]
-
-
 # =============================================================================
 # Tool/Action Allowlisting (Phase 2.4 - "LLM says, app decides")
 # =============================================================================
@@ -465,48 +447,8 @@ WORKFLOW_ALLOWLISTS: Dict[str, Dict[str, Any]] = {
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Application startup/shutdown lifecycle."""
-    # Startup: seed some demo events
-    seed_demo_events()
     yield
     # Shutdown: cleanup if needed
-
-
-def seed_demo_events():
-    """Seed initial demo events for the Live Feed."""
-    demo_events = [
-        LiveEvent(
-            id="evt_seed_001",
-            timestamp="10:42:15",
-            type="allowed",
-            message="ALLOWED: Chest CT Analysis",
-            details="Clinical consistency check passed. Model confidence 98.4%.",
-            guardrail="FDA Audit Trail",
-            reason_code="POLICY_ALLOW",
-            request_id="req_seed_001"
-        ),
-        LiveEvent(
-            id="evt_seed_002",
-            timestamp="10:45:30",
-            type="allowed",
-            message="ALLOWED: Draft Report",
-            details="Standard template usage. No anomalies detected.",
-            guardrail="Model Integrity Check",
-            reason_code="POLICY_ALLOW",
-            request_id="req_seed_002"
-        ),
-        LiveEvent(
-            id="evt_seed_003",
-            timestamp="10:48:12",
-            type="blocked",
-            message="BLOCKED: PHI Leak Prevention (No BAA)",
-            details="Attempted route to huggingface.co blocked. Destination has no BAA.",
-            guardrail="BAA Enforcement",
-            reason_code="NO_BAA_DESTINATION",
-            request_id="req_seed_003"
-        ),
-    ]
-    for evt in demo_events:
-        event_store.add_live_event(evt)
 
 
 # =============================================================================
@@ -541,7 +483,7 @@ async def health_check():
         "status": "ok",
         "service": "clinical-ai-gateway",
         "version": "0.1.0",
-        "phase": "3 - Safe Execution"
+        "phase": "prototype"
     }
 
 
@@ -605,12 +547,10 @@ async def get_events() -> List[LiveEvent]:
 @app.get("/v1/audit/private")
 async def get_private_audit_events() -> List[Dict[str, Any]]:
     """
-    Get private audit events (Phase 5).
-    
-    These events contain full details for compliance evidence.
-    In production, this endpoint would require elevated permissions.
-    
-    NOTE: May contain PHI - for hospital audit use only.
+    The internal pipeline events, from memory (the last 100).
+
+    Patient IDs and prompts are stored hashed. There is no authentication on
+    this endpoint; see the README's limits.
     """
     return [e.model_dump() for e in event_store.get_private_events()]
 
@@ -655,8 +595,8 @@ async def get_audit_stats() -> Dict[str, Any]:
         "public_event_count": len(public_events),
         "threat_breakdown": threat_breakdown,
         "severity_breakdown": severity_breakdown,
-        "phi_in_private": True,  # By design
-        "phi_in_public": False,  # Verified by sanitizer
+        "phi_in_private": any(not verify_no_phi_in_public(e) for e in private_events),
+        "phi_in_public": any(not verify_no_phi_in_public(e) for e in public_events),
     }
 
 
@@ -677,6 +617,9 @@ async def event_generator(queue: asyncio.Queue) -> AsyncGenerator[str, None]:
                 yield ": keepalive\n\n"
     except asyncio.CancelledError:
         pass
+    finally:
+        # Stop queuing events for a client that has disconnected
+        event_store.unsubscribe(queue)
 
 
 @app.get("/v1/inspect/stream")
@@ -695,13 +638,7 @@ async def inspect_stream(request: Request):
     See: devlog/gateway_build.md for rationale.
     """
     queue = event_store.subscribe()
-    
-    async def cleanup():
-        event_store.unsubscribe(queue)
-    
-    # Register cleanup on disconnect
-    request.state.cleanup = cleanup
-    
+
     return StreamingResponse(
         event_generator(queue),
         media_type="text/event-stream",
@@ -799,23 +736,6 @@ def emit_live_event(
     return event
 
 
-def check_injection(prompt: Optional[str], tool_manifest: Optional[ToolManifest]) -> Optional[str]:
-    """
-    Check for prompt injection patterns (Phase 1.6).
-    Returns the detected pattern if found, None otherwise.
-    """
-    text_to_check = ""
-    if prompt:
-        text_to_check += prompt.lower()
-    if tool_manifest and tool_manifest.description:
-        text_to_check += " " + tool_manifest.description.lower()
-    
-    for pattern in INJECTION_PATTERNS:
-        if pattern.lower() in text_to_check:
-            return pattern
-    return None
-
-
 def normalize_workflow(workflow: Optional[str]) -> str:
     return (workflow or "default_workflow").strip().lower()
 
@@ -823,22 +743,6 @@ def normalize_workflow(workflow: Optional[str]) -> str:
 def normalize_action(action: str) -> str:
     # Keep case as provided, but normalize whitespace deterministically.
     return " ".join(action.strip().split())
-
-
-def normalize_tool_name(tool_name: str) -> str:
-    return tool_name.strip().lower()
-
-
-def is_action_allowed(workflow: str, action: str) -> bool:
-    wl = WORKFLOW_ALLOWLISTS.get(workflow, WORKFLOW_ALLOWLISTS["default_workflow"])
-    allowed_actions = [normalize_action(a) for a in wl.get("allowed_actions", [])]
-    return normalize_action(action) in allowed_actions
-
-
-def is_tool_allowed(workflow: str, tool_name: str) -> bool:
-    wl = WORKFLOW_ALLOWLISTS.get(workflow, WORKFLOW_ALLOWLISTS["default_workflow"])
-    allowed_tools = [normalize_tool_name(t) for t in wl.get("allowed_tools", [])]
-    return normalize_tool_name(tool_name) in allowed_tools
 
 
 def classify_data_level(request: AnalyzeRequest) -> str:
@@ -1246,8 +1150,8 @@ async def analyze(request: AnalyzeRequest):
         request_id=request_id,
         event_type="allowed",
         message=f"ALLOWED: {request.modality} Analysis",
-        details=f"Request to {destination_info['vendor']} approved. All guardrails passed. Risk: {llm_response.risk_score}",
-        guardrail=policy_decision.guardrail or "FDA Audit Trail",
+        details=f"Destination {destination_info['vendor']} passed the registry check. Model provider: {llm_response.provider}. Risk: {llm_response.risk_score}",
+        guardrail=policy_decision.guardrail or "Default policy",
         reason_code=policy_decision.reason_code or "POLICY_ALLOW"
     )
     
@@ -1255,7 +1159,7 @@ async def analyze(request: AnalyzeRequest):
     return AnalyzeResponse(
         status="ALLOWED",
         risk=llm_response.risk_score,
-        message=f"Analysis request approved. Routed to {destination_info['vendor']}.",
+        message=f"Analysis request approved. Model call handled by the {llm_response.provider} provider.",
         policy="CLINICAL-GEN-04",
         findings=llm_response.findings if llm_response.findings else [
             "Request validated against BAA registry.",
@@ -1519,8 +1423,7 @@ async def isolate_nodes(request: IsolateRequest):
     Mark nodes as isolated/blocked.
     
     This is the backend for the demo UI's "Isolate" button.
-    In production, this would trigger actual network isolation
-    (firewall rules, ACLs, etc.).
+    No real isolation step exists (no firewall or NAC change); this only changes the node's stored status.
     """
     global _isolated_node_ids
     
@@ -1622,5 +1525,5 @@ async def quick_scan_host(host: str):
 
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run(app, host="0.0.0.0", port=8001)
+    uvicorn.run(app, host="127.0.0.1", port=8001)
 

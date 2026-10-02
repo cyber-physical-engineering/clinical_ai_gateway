@@ -6,7 +6,7 @@ This module provides persistence for:
 - Isolated node IDs (so isolation actions persist)
 
 The database is stored at:
-  gateway/scanner/scanner_data.db
+  scanner/scanner_data.db (under the repository root)
 
 Production Notes:
 - [ ] Consider PostgreSQL for production deployment

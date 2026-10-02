@@ -6,7 +6,7 @@
   "defaults": {
     "decision": "ALLOW",
     "reason_code": "POLICY_ALLOW",
-    "guardrail": "FDA Audit Trail",
+    "guardrail": "Default policy",
     "message": "Allowed by default policy."
   },
   "rules": [
