@@ -1,130 +1,70 @@
-# Network Scanner Module - Phase 4.2
+# Network scanner
 
-Shadow AI detection for clinical networks.
+A prototype module that looks for hosts running local model servers. It has a mock mode with fixed demo data and a real mode that was not exercised in the October 2026 checks.
 
-## Overview
+## What it checks
 
-This module provides network scanning capabilities to detect:
-- **Local LLM Servers**: Ollama (port 11434), custom LLM APIs
-- **Public AI Traffic**: OpenAI, HuggingFace, Anthropic, etc.
+- Open ports commonly used by local model servers: 11434 (Ollama), 8080, 8000, 3000 and 5000. An open port is enough to flag a host; no service check follows.
+- Whether six public AI API hostnames resolve from the scanning machine. Resolution says nothing about other hosts' traffic.
 
-## Components
+Real mode uses nmap when it is installed, otherwise a basic socket check. The socket fallback ignores the requested subnet and probes the scanning machine's own network address and its `.1` router address.
 
-| File | Purpose |
-|------|---------|
-| `models.py` | Pydantic models for scan results, nodes, risk levels |
-| `network_scanner.py` | Real scanner using Nmap + DNS analysis |
-| `mock_scanner.py` | Demo scanner with realistic mock data |
-| `test_scanner.py` | Test suite for all scanner functionality |
+## Files
 
-## Quick Start
+| File | What it is |
+|---|---|
+| `models.py` | Pydantic models for scan results, nodes and risk levels |
+| `network_scanner.py` | The real scanner |
+| `mock_scanner.py` | Nine fixed demo nodes |
+| `persistence.py` | SQLite storage for the last scan and the isolated node IDs (`scanner/scanner_data.db`) |
+| `test_scanner.py` | Five script tests: three use the mock data; two touch the real network and run only with SCANNER_REAL_NETWORK=1 |
 
-### Run Tests
-```bash
-cd gateway/
-source api/venv/bin/activate
-python -m scanner.test_scanner
-```
+## Endpoints in the gateway API
 
-### Use in Gateway API
-The scanner is integrated into the gateway API with these endpoints:
+| Endpoint | Method | What it does |
+|---|---|---|
+| `/v1/scanner/status` | GET | Reports whether the scanner module loaded |
+| `/v1/scanner/scan` | POST | Runs a scan (`{"use_mock": true}` for the demo data) |
+| `/v1/scanner/results` | GET | The last scan |
+| `/v1/scanner/nodes` | GET | Nodes for the UI |
+| `/v1/scanner/isolate` | POST | Marks node IDs as blocked in the stored data |
+| `/v1/scanner/reset` | POST | Clears the stored state |
+| `/v1/scanner/quick/{host}` | GET | Probes one host |
 
-| Endpoint | Method | Purpose |
-|----------|--------|---------|
-| `/v1/scanner/status` | GET | Check scanner availability |
-| `/v1/scanner/scan` | POST | Run a network scan |
-| `/v1/scanner/results` | GET | Get last scan results |
-| `/v1/scanner/nodes` | GET | Get nodes for UI |
-| `/v1/scanner/isolate` | POST | Mark nodes as blocked |
-| `/v1/scanner/reset` | POST | Reset scanner state |
-| `/v1/scanner/quick/{host}` | GET | Quick scan single host |
+Mock scan:
 
-### API Examples
-
-**Run Mock Scan (Demo)**
 ```bash
 curl -X POST http://localhost:8001/v1/scanner/scan \
   -H "Content-Type: application/json" \
   -d '{"use_mock": true}'
 ```
 
-**Run Real Scan (requires Nmap)**
-```bash
-curl -X POST http://localhost:8001/v1/scanner/scan \
-  -H "Content-Type: application/json" \
-  -d '{"use_mock": false, "subnets": ["192.168.1.0/24"]}'
-```
+Mark a node blocked:
 
-**Isolate Critical Nodes**
 ```bash
 curl -X POST http://localhost:8001/v1/scanner/isolate \
   -H "Content-Type: application/json" \
   -d '{"node_ids": ["node_dr_smith_laptop"]}'
 ```
 
-## Detection Logic
+## Risk labels
 
-### Port Scanning
-| Port | Detection |
-|------|-----------|
-| 11434 | Ollama LLM Server |
-| 8080 | Potential LLM proxy |
-| 8000 | FastAPI LLM service |
-| 3000 | LLM web interface |
-| 5000 | Flask LLM service |
+| Label | Meaning in the demo data |
+|---|---|
+| `trusted` | Known and approved |
+| `warning` | Known, needs review |
+| `critical` | Unknown or uncontrolled |
+| `blocked` | Marked blocked through `/v1/scanner/isolate` |
 
-### DNS Analysis
-Detects traffic to public AI APIs:
-- `api.openai.com` (Critical - No BAA)
-- `huggingface.co` (Critical - No BAA)
-- `api.anthropic.com` (Critical - No BAA)
-- `generativelanguage.googleapis.com` (Warning - BAA possible)
-- `api.cohere.ai` (Critical - No BAA)
-- `api.replicate.com` (Critical - No BAA)
+## Limits
 
-## Risk Levels
+- "Isolate" changes a node's stored status. It does not touch the network.
+- There is no authentication, so any caller can start a scan or probe a host.
+- `/v1/scanner/status` reports real scanning as available whenever the module imports, even without nmap.
+- The two real-network tests in `test_scanner.py` run only with `SCANNER_REAL_NETWORK=1`. Set it only on a network you own.
 
-| Level | Color | Meaning |
-|-------|-------|---------|
-| `trusted` | 🟢 Green | Known, approved, BAA in place |
-| `warning` | 🟡 Yellow | Known but needs review |
-| `critical` | 🔴 Red | Uncontrolled, no BAA |
-| `blocked` | ⬜ Grey | Isolated by admin |
+Run the mock tests from the repository root:
 
-## Mock Data (Demo)
-
-The mock scanner returns 5 nodes matching the demo UI narrative:
-
-1. **PACS Server** (🟢 Trusted) - 192.168.1.10
-2. **AI Orchestrator** (🟢 Trusted) - 192.168.1.20 (TrustStack)
-3. **Local Tuning Model** (🟡 Warning) - 192.168.1.21
-4. **Dr. Smith's Laptop** (🔴 Critical) - 192.168.1.50 (Ollama!)
-5. **Unknown Cloud API** (🔴 Critical) - huggingface.co
-
-## Production Notes
-
-The following are documented in-code for production hardening:
-
-- [ ] Add scan scheduling (cron/APScheduler)
-- [ ] Integrate Zeek for real-time traffic analysis
-- [ ] Add result persistence (database)
-- [ ] Add scan diff capability
-- [ ] Add rate limiting
-- [ ] Add scope validation
-- [ ] Add audit logging
-- [ ] Add MAC vendor lookup
-- [ ] Consider DoH detection
-
-## Requirements
-
-**Real Scanner:**
-- Nmap (`brew install nmap` / `apt install nmap`)
-- Network access to target subnets
-
-**Mock Scanner:**
-- No external dependencies
-
-**Python:**
-- pydantic >= 2.5.0
-- (included in gateway/api/requirements.txt)
-
+```bash
+python -m scanner.test_scanner
+```
